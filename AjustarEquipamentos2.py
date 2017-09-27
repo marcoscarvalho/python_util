@@ -28,7 +28,9 @@ select ip.designador,
        rl.id_recurso_logico_spec,
        ef.id_modelo_equipamento   ef_modelo_equipamento,
        ef.serial,
-       ef.mac_address
+       ef.mac_address,
+	   hg.id id_hg
+	   , ef.id id_ef
   from conf_online_owner.instancia_produto  ip,
        conf_online_owner.instancia_servico  iss,
        conf_online_owner.home_gateway       hg,
@@ -42,7 +44,7 @@ select ip.designador,
    and hg.id_status = 2
    and rl.id_status_servico = 2
    and ip.crm_origem = 'MIGRACAO'
-   and ip.designador in ( 'SRR-016811781477-013', 'HORT-006280164563-013', 'CMX-069464817116-013')
+   and iss.create_date > sysdate - 30
 '''
 
 is_select_rpon = '''
@@ -82,7 +84,7 @@ def execute_select_equip(user, password, db_alias, select):
     return pd.DataFrame(lst, columns=cols_equipamento)
 		
 def execute_select(user, password, db_alias, select):
-    cols_cliente = ['designador', 'crm_origem', 'serial_home_gateway', 'macaddress_home_gateway', 'hg_modelo_equipamento', 'id_recurso_logico_spec', 'ef_modelo_equipamento', 'serial', 'mac_address', 'rpon']
+    cols_cliente = ['designador', 'crm_origem', 'serial_home_gateway', 'macaddress_home_gateway', 'hg_modelo_equipamento', 'id_recurso_logico_spec', 'ef_modelo_equipamento', 'serial', 'mac_address', 'rpon', 'id_hg', 'id_ef', 'processado_ef', 'processado_hg', 'mac_acs', 'serial_acs', 'equip_acs']
     lst = []
 	
     try:
@@ -90,14 +92,26 @@ def execute_select(user, password, db_alias, select):
         cur = con.cursor()
         cur.execute(select)
 
-        for designador, crm_origem, serial_home_gateway, macaddress_home_gateway, hg_modelo_equipamento, id_recurso_logico_spec, ef_modelo_equipamento, serial, mac_address in cur:
-            lst.append([designador, crm_origem, serial_home_gateway, macaddress_home_gateway, hg_modelo_equipamento, id_recurso_logico_spec, ef_modelo_equipamento, serial, mac_address, None])
+        for designador, crm_origem, serial_home_gateway, macaddress_home_gateway, hg_modelo_equipamento, id_recurso_logico_spec, ef_modelo_equipamento, serial, mac_address, id_hg, id_ef in cur:
+            lst.append([designador, crm_origem, serial_home_gateway, macaddress_home_gateway, hg_modelo_equipamento, id_recurso_logico_spec, ef_modelo_equipamento, serial, mac_address, None, id_hg, id_ef, None, None, None, None, None])
 
     except Exception as e:
         print('Erro ao executar select', e)
 	
     return pd.DataFrame(lst, columns=cols_cliente)
 
+def execute_update(user, password, db_alias, update):
+    try:
+        con = cx_Oracle.connect(user, password, db_alias)
+        cur = con.cursor()
+        cur.execute(update)
+        con.commit()
+        return True
+
+    except Exception as e:
+        print('Erro ao executar execute_update', e)
+        return False
+		
 def execute_select2(user, password, db_alias, select, df):
     try:
         for index, row in df.iterrows():
@@ -112,27 +126,49 @@ def execute_select2(user, password, db_alias, select, df):
     except Exception as e:
         print('Erro ao executar execute_select2', e)
 
-def filter_by_regular(df):
-    q = """
-    select SERIALNUMBER, DEVICE_TYPE_NAME, MODEL_NAME, NRC, MACADDR from df;
-    """
-    return pandasql.sqldf(q, locals())
+dfacs = pd.read_csv('massa/BaseACSFibra-20170926.csv', encoding='ISO-8859-1', sep=';', dtype=str)
+dfacs['NRC'] = dfacs['NRC'].fillna('nulo')
 
-def read_csv(caramba):
-    with open('massa/BaseACSFibra-20170926.csv', "r", newline="") as fp:
-        reader = csv.reader(fp, delimiter=";")
-        rows = [x[:1] + [';'.join(x[1:-2])] + x[-2:] for x in reader] 
-        df = pd.DataFrame(rows)
-        return df
-	
-dfacs = read_csv('asdfasdf')
-dfeqp = execute_select_equip(col_user, col_pass, col_db_alias, col_select_equipamentos)
+#dfeqp = execute_select_equip(col_user, col_pass, col_db_alias, col_select_equipamentos)
 dfcol = execute_select(col_user, col_pass, col_db_alias, col_select_main)
 execute_select2(is_user, is_pass, is_db_alias, is_select_rpon, dfcol)
 
-print(dfacs)
+#print(dfeqp)
 
-#for index, row in dfcol.iterrows():
-#    rpon = row['rpon']
-#    print(rpon)
-#    print(dfacs.loc[dfacs['NRC'] == rpon])
+for index, row in dfcol.iterrows():
+    serial = row['serial']
+    mac_address = row['mac_address']
+    serial_home_gateway = row['serial_home_gateway']
+    macaddress_home_gateway = row['macaddress_home_gateway']
+    id_ef = row['id_ef']
+    id_hg = row['id_hg']
+    designador = row['designador']
+    
+    df_ok = dfacs[dfacs['NRC'].str.contains(row['rpon'])]
+    if df_ok.empty:
+        if 'MIGR' in serial or 'MIGR' in serial_home_gateway or 'MIGR' in mac_address  or 'MIGR' in macaddress_home_gateway: 
+            print('Sem solucao para o cliente ', designador)
+        else:
+            continue
+
+    s = df_ok.iloc[0]['SERIALNUMBER'].upper()
+    m = df_ok.iloc[0]['MACADDR'].upper()
+    d = df_ok.iloc[0]['DEVICE_TYPE_NAME'].upper()
+	
+    dfcol.at[index, 'mac_acs'] = m
+    dfcol.at[index, 'serial_acs'] = s
+    dfcol.at[index, 'equip_acs'] = d
+
+    #Equipamento Fisico
+    if serial != s or mac_address != m:
+        query_serial = 'update conf_online_owner.equipamento_fisico ef set ef.serial = \'' + str(s).upper() + '\', ef.mac_address = \'' + str(m).upper() + '\' where id = ' + str(id_ef)
+        dfcol.at[index, 'processado_ef'] = execute_update(col_user, col_pass, col_db_alias, query_serial)
+        print('Executado com sucesso em EF', designador, serial, s, mac_address, m, query_serial)
+
+    #HG
+    if serial_home_gateway != s or macaddress_home_gateway != m:
+        query_hg = 'update conf_online_owner.home_gateway hg set hg.serial_home_gateway = \'' + str(s).upper() + '\', hg.macaddress_home_gateway = \'' + str(m).upper() + '\' where id = ' + str(id_hg)
+        dfcol.at[index, 'processado_hg'] = execute_update(col_user, col_pass, col_db_alias, query_hg)
+        print('Executado com sucesso em hg', designador, serial_home_gateway, s, macaddress_home_gateway, m, query_hg)
+
+dfcol.to_csv('executado.csv', sep=';', encoding='utf-8')
