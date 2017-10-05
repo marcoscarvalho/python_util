@@ -1,2 +1,4 @@
 __pycache__
-massa
+*.csv
+*.xlsx
+*.gz
