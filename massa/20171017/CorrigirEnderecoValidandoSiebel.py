@@ -15,6 +15,10 @@ is_user = 'service_inventory_owner'
 is_pass = 'service_inventory_owner'
 is_db_alias = 'SVCPCONF'
 
+ipunif_user = 'PROFILING_OWNER'
+ipunif_pass = 'ProfilingVivo123'
+ipunif_db_alias = '(DESCRIPTION=(CONNECT_DATA=(SERVICE_NAME=IPUNIF))(ADDRESS=(PROTOCOL=TCP)(HOST=vipscancrs033)(PORT=1521)))'
+
 log_out = open('log_out_siebel.txt', 'a')
 
 ultimo = ''

@@ -8,6 +8,7 @@ import datetime
 import threading
 import time
 import sys, os
+import cx_Oracle
 
 ipunif_user = 'PROFILING_OWNER'
 ipunif_pass = 'ProfilingVivo123'
@@ -29,7 +30,7 @@ cols = ['BANDA', 'RPON_BANDA', 'LINHA', 'RPON_LINHA', 'TV', 'RPON_TV', 'DOCUMENT
         'VUSER_df1', 'VLAN_VPN_IP_df1', 'VLAN_VPN_IP_INTERNET_df1', 'NAS_PORT_df1', 'NAS_IP_df1', 'ONU_df1', 'SLOT_ONU_df1', 'PORTA_ONU_df1',
         'IP_FIXO_df1', 'Fabricante_OLT_df1', 'Fabricante_SWD_df1', 'Fabricante_SWC_df1', 'Fabricante_SWC_Agregador_df1', 'STB_IP_df1', 'STB_IP2_df1', 'STB_IP3_df1',
         'STB_IP4_df1', 'STB_IP5_df1', 'STB_IP6_df1', 'MASK_df1', 'STB_DEFAULT_GATEWAY_df1', 'QTD_PONTOS_TV_df1', 'TV_SERVICES_df1', 'TV_SERVICES2_df1',
-        'TV_SERVICES3_df1', 'TV_SERVICES4_df1', 'TV_SERVICES5_df1', 'TV_SERVICES6_df1','VLAN_M_df1', 'VLAN_U_df1', 'VLAN_A_df1', 'ultimo_df1',
+        'TV_SERVICES3_df1', 'TV_SERVICES4_df1', 'TV_SERVICES5_df1', 'TV_SERVICES6_df1','VLAN_M_df1', 'VLAN_U_df1', 'VLAN_A_df1',
         'NRO_TELEFONE13__df2', 'NRO_TELEFONE15__df2', 'DDD__df2', 'CNL__df2', 'NRC__df2', 'REDE__df2', 'VELOCIDADE_BL__df2', 'LOCALIDADE__df2', 'SIGLA_AT__df2', 'SITE__df2', 'NOME_OLT__df2', 'SLOT_OLT__df2',
         'SubSlot_OLT__df2', 'PORTA_OLT__df2', 'NOME_NISIP__df2', 'SLOT_NISIP__df2', 'SUBSLOT_NISIP__df2', 'PORTA_NISIP__df2', 'DATA_CRIACAO_CLIENTE__df2', 'DATA_MODIFICACAO_CLIENTE__df2',
         'ENDIP_AGREGADOR__df2', 'ENDIP_SWC__df2', 'ENDIP_SWD__df2', 'TIPO_EQUIP_OLT__df2', 'TIPO_EQUIP_AGREGADOR__df2', 'ENDIP_OLT__df2', 'NOME_SWD__df2', 'NOME_SWC__df2',
@@ -39,7 +40,7 @@ cols = ['BANDA', 'RPON_BANDA', 'LINHA', 'RPON_LINHA', 'TV', 'RPON_TV', 'DOCUMENT
         'VUSER__df2', 'VLAN_VPN_IP__df2', 'VLAN_VPN_IP_INTERNET__df2', 'NAS_PORT__df2', 'NAS_IP__df2', 'ONU__df2', 'SLOT_ONU__df2', 'PORTA_ONU__df2',
         'IP_FIXO__df2', 'Fabricante_OLT__df2', 'Fabricante_SWD__df2', 'Fabricante_SWC__df2', 'Fabricante_SWC_Agregador__df2', 'STB_IP__df2', 'STB_IP2__df2', 'STB_IP3__df2',
         'STB_IP4__df2', 'STB_IP5__df2', 'STB_IP6__df2', 'MASK__df2', 'STB_DEFAULT_GATEWAY__df2', 'QTD_PONTOS_TV__df2', 'TV_SERVICES__df2', 'TV_SERVICES2__df2',
-        'TV_SERVICES3__df2', 'TV_SERVICES4__df2', 'TV_SERVICES5__df2', 'TV_SERVICES6__df2','VLAN_M__df2', 'VLAN_U__df2', 'VLAN_A__df2', 'ultimo__df2']
+        'TV_SERVICES3__df2', 'TV_SERVICES4__df2', 'TV_SERVICES5__df2', 'TV_SERVICES6__df2','VLAN_M__df2', 'VLAN_U__df2', 'VLAN_A__df2']
 	
 def recuperar_informacao_web_radius(nrc):
     try:
@@ -77,6 +78,20 @@ def select_sigres_anterior_by_nrc(nrc):
 
     return None
 
+def select_sigres_anterior_by_id_fibra(id_fibra):
+    try:
+        con2 = cx_Oracle.connect(ipunif_user, ipunif_pass, ipunif_db_alias)
+        return pd.read_sql('''
+				select * 
+				  from profiling_owner.sad_20171106 
+				 where nro_telefone15 = :p01_nrc''', 
+				 con=con2, params={'p01_nrc': id_fibra})
+
+    except Exception as e:
+        print('Erro ao executar select', id_fibra, e)
+
+    return None
+
 def select_sigres_depois_by_nrc(nrc):
     try:
         con2 = cx_Oracle.connect(ipunif_user, ipunif_pass, ipunif_db_alias)
@@ -88,6 +103,20 @@ def select_sigres_depois_by_nrc(nrc):
 
     except Exception as e:
         print('Erro ao executar select', nrc, e)
+
+    return None
+
+def select_sigres_depois_by_id_fibra(id_fibra):
+    try:
+        con2 = cx_Oracle.connect(ipunif_user, ipunif_pass, ipunif_db_alias)
+        return pd.read_sql('''
+				select * 
+				  from profiling_owner.sad_20171108 
+				 where nro_telefone15 = :p01_nrc''', 
+				 con=con2, params={'p01_nrc': id_fibra})
+
+    except Exception as e:
+        print('Erro ao executar select', id_fibra, e)
 
     return None
 
@@ -194,23 +223,13 @@ def executar():
     lst = []
     contador = 0
     df_clientes_migrados = pd.read_csv("C:\GIT\python_util\\foto\clientes_migrados_com_id_fibra.csv", encoding='ISO-8859-1', sep=';', dtype=str)
-    df_20171021 = pd.read_csv(
-        "C:\GIT\python_util\\foto\servicos_ativos_detalhado_20171021.csv", 
-        encoding='ISO-8859-1', 
-        sep=';', 
-        dtype=str)
-    df_20171023 = pd.read_csv(
-        "C:\GIT\python_util\\foto\servicos_ativos_detalhado_20171023.csv", 
-        encoding='ISO-8859-1', 
-        sep=';', 
-        dtype=str)
 
     for index, row in df_clientes_migrados.iterrows():
 
         if index % 100 == 0:
             print(index)
 
-        if contador >= 600:
+        if contador >= 100:
             break
         
         try:
@@ -224,13 +243,15 @@ def executar():
             RPON_END = row['RPON_END']
             ID_FIBRA = row['ID_FIBRA']
 
-            df_position_20171021 = df_20171021.loc[df_20171021['NRO_TELEFONE15'] == ID_FIBRA]
-            if df_position_20171021.empty:
-                df_position_20171021 = df_20171021.loc[df_20171021['NRC'] == RPON_LINHA]
+            
 
-            df_position_20171023 = df_20171023.loc[df_20171023['NRO_TELEFONE15'] == ID_FIBRA]
-            if df_position_20171023.empty:
-                df_position_20171023 = df_20171023.loc[df_20171023['NRC'] == RPON_LINHA]
+            df_position_20171021 = select_sigres_anterior_by_id_fibra(ID_FIBRA)
+            if df_position_20171021 is None:
+                df_position_20171021 = select_sigres_anterior_by_nrc(RPON_LINHA)
+
+            df_position_20171023 = select_sigres_depois_by_id_fibra(ID_FIBRA)
+            if df_position_20171023 is None:
+                df_position_20171023 = select_sigres_depois_by_nrc(RPON_LINHA)
 
             nrc = None
             serial = None
@@ -281,13 +302,13 @@ def executar():
                     '', '', '', '','', '','', '', '', '', '', '', '', '','', '', '', 
                     '', '', '', '', '','', '', '', '', '', '', '', '','', '', '', '', 
                     '', '', '', '','', '', '', '', '', '', '', '','', '', '', '', '', 
-                    '', '', '','', '', '', '', '', '', '', '','', '', '', '','', '', '', '',
+                    '', '', '','', '', '', '', '', '', '', '','', '', '', '','', '', '', 
                     
                     '', '', '', '', '', '', '', '', '', '', '', '','', '', 
                     '', '', '', '','', '','', '', '', '', '', '', '', '','', '', '', 
                     '', '', '', '', '','', '', '', '', '', '', '', '','', '', '', '', 
                     '', '', '', '','', '', '', '', '', '', '', '','', '', '', '', '', 
-                    '', '', '','', '', '', '', '', '', '', '','', '', '', '','', '', '', ''])
+                    '', '', '','', '', '', '', '', '', '', '','', '', '', '','', '', ''])
             else:
                 lst1.append([BANDA, RPON_BANDA, LINHA, RPON_LINHA, TV, RPON_TV, DOCUMENTO, RPON_END, ID_FIBRA, nrc, serial, fabricante, modelo, mac, psa, aprovisionamento, sigres_df_igual])
                 lst2 = np.hstack((lst1, a, b))
@@ -320,13 +341,12 @@ def logar(msg, *args):
 
     valor = valor + '\n'
     
-    #print(valor)
+    print(valor)
     log_out.write(valor)
 
 df = executar()
 logar('----------------------------------------------------------------------------------------------------------\
 Gravando\
 ----------------------------------------------------------------------------------------------------------')
-df.to_csv('executado.csv', sep=';', encoding='utf-8')
+df.to_csv('executado20171108.csv', sep=';', encoding='utf-8')
 logar('----------------------------------------------------------------------------------------------------------')
-logar(df)
