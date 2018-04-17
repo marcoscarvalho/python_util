@@ -53,6 +53,7 @@ nBIOption = {'disableCaptureConstraint': 'true', 'executionTimeoutSeconds': '1',
 
 client_nbi02_prod = Client('http://10.113.64.1:7025/NBIServiceImpl/NBIService?wsdl',
                            wsse=UsernameToken('g0031273', 'Blumen@u*17'))
+						   #wsse=UsernameToken('nbi_oss', '@Telefonic@*15'))
 
 #VIP Gerencia: 10.113.64.1:7025
 #Link normal: 10.223.190.36:17025
