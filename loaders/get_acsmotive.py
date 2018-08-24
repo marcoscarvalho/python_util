@@ -86,7 +86,7 @@ def create_loader(arquivo_original, tabela):
 
             load data
             infile ' ''' + arquivo_original + ''''
-            append into table PROFILING_OWNER.''' + tabela + '''
+            truncate into table PROFILING_OWNER.''' + tabela + '''
             
             FIELDS TERMINATED BY ';'
             TRAILING NULLCOLS
@@ -200,7 +200,7 @@ def recuperar_arquivos2(url, tag):
 
 tags = filtrar_links(recuperar_tag_a(recuperar_html()), nome_do_arquivo)
 for t in tags:
-    funcionou = recuperar_arquivos2(endereco, t)
+    funcionou = recuperar_arquivos(endereco, t)
     
 print('Executara?: ', funcionou)
 if funcionou:
@@ -213,7 +213,7 @@ if funcionou:
     print('cwd_csv', cwd_csv)
 
     # Truncate table
-    truncate_table()
+    #truncate_table()
     tabela_com_data = 'BASEACSCOMPLETA_' + data
     executar_base(retornar_create(tabela_com_data))
     executar_base('CREATE INDEX ' + tabela_com_data + '_NRC ON PROFILING_OWNER.' + tabela_com_data + ' (NRC)')
@@ -236,5 +236,5 @@ if funcionou:
                     control=BASEACSCOMPLETA.ctl \
                     data=' + cwd_csv + ' log=BASEACSCOMPLETA.log', shell=True)
 
-    executar_base('delete from PROFILING_OWNER.' + tabela_com_data + ' c where c.nrc = \'NRC\' ')
-    executar_base('delete from PROFILING_OWNER.BaseACSCompleta c where c.nrc = \'NRC\' ')
+    executar_base("delete from PROFILING_OWNER." + tabela_com_data + " c where c.nrc = 'NRC' ")
+    executar_base("delete from PROFILING_OWNER.BaseACSCompleta c where c.nrc = 'NRC' ")
